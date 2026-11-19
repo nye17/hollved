@@ -273,8 +273,10 @@ function sceneRenderer(container) {
 
   // One { id, color, positions } per tracer; see graphLoader.
   function setPositions(tracers) {
-    // Reset tracer state when new positions arrive
-    tracerRanges = null;
+    var isAppend = tracers && tracers.length && tracers[0].append;
+
+    // Only a fresh catalogue resets tracer state. Background chunks preserve it.
+    if (!isAppend) tracerRanges = null;
 
     focusScene();
 
@@ -325,52 +327,56 @@ function sceneRenderer(container) {
       _rulerQuat = new THREE.Quaternion();
 
       var configVisible = appConfig.getVisibleTracers();
-      cmbVisible = configVisible ? configVisible.indexOf('cmb') >= 0 : false;
-      cmbSphere = createCMBSphere(engine.scene(), cmbRadius, engine.getExposure(), engine.getPower());
-      cmbSphere.visible = cmbVisible;
 
-      // ONE label layer for the whole scene, created before its clients and so
-      // registered first in the afterToneMap list -- it must run before the solar
-      // pass and before postScene is drawn. Planets, stars, constellations and
-      // galaxies then declutter against each other and fade against a single
-      // nearest, which is what makes the names hand over cleanly from one scale
-      // to the next. Its default zoom window is the galaxies'; the other sources
-      // override it (see labelLayer.add).
-      labels = createLabelLayer(engine, engine.markDirty, {
-        minDiamPx:   LABEL_MIN_DIAM_PX,
-        maxDiamFrac: LABEL_MAX_DIAM_FRAC
-      });
+      if (config.enableAuxLayers) {
+        cmbVisible = configVisible ? configVisible.indexOf('cmb') >= 0 : false;
+        cmbSphere = createCMBSphere(engine.scene(), cmbRadius, engine.getExposure(), engine.getPower());
+        cmbSphere.visible = cmbVisible;
 
-      starField        = createStarField(engine, engine.markDirty, labels);
-      detailedGalaxies = createDetailedGalaxies(engine, engine.markDirty, labels,
-        function(mwFrame) {
-          // The Milky Way's own frame, from the one manifest fetch, handed to the
-          // layer that draws the Sun's orbit in it. Routed rather than re-derived
-          // so the orbit cannot end up in a different plane from the disc.
-          starField.setGalaxyFrame(mwFrame);
+        // ONE label layer for the whole scene, created before its clients and so
+        // registered first in the afterToneMap list -- it must run before the solar
+        // pass and before postScene is drawn.
+        labels = createLabelLayer(engine, engine.markDirty, {
+          minDiamPx:   LABEL_MIN_DIAM_PX,
+          maxDiamFrac: LABEL_MAX_DIAM_FRAC
         });
-      solarRenderer    = createSolarRenderer(engine, engine.markDirty, labels,
-        function(sunPos) {
-          starField.setOrigin(sunPos);
-        });
-      if (configVisible && configVisible.indexOf('local') < 0) {
-        setLocalVisible(false);
+
+        starField        = createStarField(engine, engine.markDirty, labels);
+        detailedGalaxies = createDetailedGalaxies(engine, engine.markDirty, labels,
+          function(mwFrame) {
+            starField.setGalaxyFrame(mwFrame);
+          });
+        solarRenderer    = createSolarRenderer(engine, engine.markDirty, labels,
+          function(sunPos) {
+            starField.setOrigin(sunPos);
+          });
+        if (configVisible && configVisible.indexOf('local') < 0) {
+          setLocalVisible(false);
+        }
       }
 
-      radarEnabled = configVisible ? configVisible.indexOf('radar') >= 0 : false;
-      rulerObjects = createRadar(engine.scene(), labelScene);
-      updateRadarVisibility();
+      if (config.enableRadar) {
+        radarEnabled = configVisible ? configVisible.indexOf('radar') >= 0 : false;
+        rulerObjects = createRadar(engine.scene(), labelScene);
+        updateRadarVisibility();
+      }
 
       mobileControl = createMobileControl(engine, satelliteControl, spaceshipControl);
       mobileControl.setMode(currentMode);
       appEvents.controlModeChanged.fire(currentMode); // sync UI button on load
     }
 
-    catalogue.setTracers(tracers);
+    if (isAppend) {
+      catalogue.appendTracers(tracers);
+    } else {
+      catalogue.setTracers(tracers);
+    }
 
-    var _cv = appConfig.getVisibleTracers();
-    sliceEnabled = _cv ? _cv.indexOf('slice') >= 0 : false;
-    applySlice();
+    if (config.enableAuxLayers) {
+      var _cv = appConfig.getVisibleTracers();
+      sliceEnabled = _cv ? _cv.indexOf('slice') >= 0 : false;
+      applySlice();
+    }
 
     engine.markDirty();
   }

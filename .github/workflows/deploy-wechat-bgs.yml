@@ -1,0 +1,66 @@
+name: Deploy WeChat BGS
+
+on:
+  push:
+    branches:
+      - wechat-bgs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build WeChat BGS
+        run: npm run build:wechat-bgs
+
+      - name: Generate reduced mobile BGS catalogue
+        run: npm run generate:wechat-bgs-data
+
+      - name: Show deployment sizes
+        run: |
+          du -h build-wechat-bgs/app.js
+          du -ch build-wechat-bgs/data/desi/bgs/positions-*.bin | tail -1
+          ls -lh build-wechat-bgs/data/desi/bgs/positions-*.bin | head
+          cat build-wechat-bgs/data/desi/bgs/meta.json
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: build-wechat-bgs
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

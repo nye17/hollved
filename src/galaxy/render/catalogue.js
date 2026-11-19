@@ -60,6 +60,7 @@ export default function createCatalogue(scene) {
 
   return {
     setTracers: setTracers,
+    appendTracers: appendTracers,
     setTracerVisible: function(id, visible) {
       clouds.forEach(function(points) { if (points.name === id) points.visible = visible; });
     },
@@ -73,28 +74,32 @@ export default function createCatalogue(scene) {
       points.geometry.dispose();
       points.material.dispose();
     });
-    clouds = list.map(function(t) {
-      // Float16Array wraps the downloaded buffer as it is; Float16BufferAttribute,
-      // the fallback for browsers without it, makes a copy.
-      var attribute = typeof Float16Array !== 'undefined'
-        ? new THREE.BufferAttribute(new Float16Array(t.positions.buffer, t.positions.byteOffset, t.positions.length), 3)
-        : new THREE.Float16BufferAttribute(t.positions, 3);
-      // Never read back once on the GPU, so the CPU copy is dropped there:
-      // 6 bytes a point, 180 MB for a 30M-point catalogue.
-      attribute.onUpload(function() { this.array = null; });
+    clouds = list.map(createCloud);
+  }
 
-      var geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', attribute);
-      // Given, not computed: three would read it from the array, which is about
-      // to be released, for culling and for sorting. A survey surrounds the
-      // observer and is nearly always in view, so it is simply unbounded.
-      geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Infinity);
-      var points = new THREE.Points(geometry, createMaterial(t.color));
-      points.name = t.id;
-      points.matrixAutoUpdate = false;   // never moves
-      scene.add(points);
-      return points;
+  function appendTracers(list) {
+    list.forEach(function(t) {
+      clouds.push(createCloud(t));
     });
+  }
+
+  function createCloud(t) {
+    // Float16Array wraps the downloaded buffer as it is; Float16BufferAttribute,
+    // the fallback for browsers without it, makes a copy.
+    var attribute = typeof Float16Array !== 'undefined'
+      ? new THREE.BufferAttribute(new Float16Array(t.positions.buffer, t.positions.byteOffset, t.positions.length), 3)
+      : new THREE.Float16BufferAttribute(t.positions, 3);
+    // Never read back once on the GPU, so the CPU copy is dropped there.
+    attribute.onUpload(function() { this.array = null; });
+
+    var geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', attribute);
+    geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Infinity);
+    var points = new THREE.Points(geometry, createMaterial(t.color));
+    points.name = t.id;
+    points.matrixAutoUpdate = false;
+    scene.add(points);
+    return points;
   }
 
   function createMaterial(color) {

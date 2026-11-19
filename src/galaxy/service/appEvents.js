@@ -85,5 +85,11 @@ export default eventMirror([
   /**
    * Fired when the user wants to reset camera/pivot position to the origin (0,0,0).
    */
-  'resetToOrigin'
+  'resetToOrigin',
+
+  /**
+   * Fired by the mobile progressive loader after a preview/detail chunk reaches
+   * the renderer. Carries { loaded, total, chunk, chunks }.
+   */
+  'progressiveLoadUpdate'
 ], appEvents);

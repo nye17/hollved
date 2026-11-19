@@ -19,10 +19,14 @@ function request(url, options) {
     req.addEventListener("load", transferComplete, false);
     req.addEventListener("error", transferFailed, false);
     req.addEventListener("abort", transferCanceled, false);
+    req.addEventListener("timeout", transferTimedOut, false);
 
     req.open('GET', url);
     if (options.responseType) {
       req.responseType = options.responseType;
+    }
+    if (options.timeout) {
+      req.timeout = options.timeout;
     }
     req.send(null);
 
@@ -51,6 +55,10 @@ function request(url, options) {
 
     function transferCanceled() {
       reject(`Cancelled download of ${url}`);
+    }
+
+    function transferTimedOut() {
+      reject(`Timed out downloading ${url}`);
     }
   }
 }

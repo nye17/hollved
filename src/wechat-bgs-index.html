@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>DESI BGS 三维宇宙地图</title>
+  <meta name="description" content="在手机上探索 DESI Bright Galaxy Survey 的三维星系分布。">
+  <meta name="author" content="Hugo Simon">
+  <link rel="stylesheet" href="styles.css" type="text/css" media="screen" charset="utf-8">
+  <meta property="og:title" content="DESI BGS 三维宇宙地图" />
+  <meta property="og:description" content="在手机上探索 DESI Bright Galaxy Survey 的三维星系分布。" />
+  <script>
+    // This standalone build always enters the DESI BGS view. The exact camera
+    // state matches the share link used for the WeChat article.
+    if (!window.location.hash || window.location.hash === '#/' || window.location.hash.indexOf('#/desi') !== 0) {
+      window.location.hash = '#/desi?pos=0.000,0.000,0.000&zen=270.000,0.000&azaltr=260.413,21.245,26.000&trace=bgs';
+    }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    // Use the reduced catalogue packaged with this Pages deployment.
+    window.HOLLVED_DATA_URL = './data/';
+  </script>
+  <script src="app.js?v=progressive-2"></script>
+</body>
+</html>
