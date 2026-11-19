@@ -71,19 +71,30 @@ async function main() {
   const output = sampled.subarray(0, selected * RECORD_BYTES);
   await mkdir(OUT_BGS, { recursive: true });
 
+  const chunkCount = Math.ceil(selected / CHUNK_RECORDS);
+  const chunkBuffers = Array.from({ length: chunkCount }, function(_, chunkIndex) {
+    const records = Math.ceil((selected - chunkIndex) / chunkCount);
+    return Buffer.allocUnsafe(records * RECORD_BYTES);
+  });
+  const chunkOffsets = new Array(chunkCount).fill(0);
+
+  // Interleave records across chunks so every individual chunk samples the
+  // whole catalogue ordering. Chunk 0 is therefore a useful full-footprint
+  // preview rather than merely the first contiguous catalogue segment.
+  for (let record = 0; record < selected; ++record) {
+    const chunkIndex = record % chunkCount;
+    const srcStart = record * RECORD_BYTES;
+    const dstStart = chunkOffsets[chunkIndex] * RECORD_BYTES;
+    output.copy(chunkBuffers[chunkIndex], dstStart, srcStart, srcStart + RECORD_BYTES);
+    chunkOffsets[chunkIndex] += 1;
+  }
+
   const chunks = [];
-  const chunkWrites = [];
-  for (let startRecord = 0, chunkIndex = 0; startRecord < selected; startRecord += CHUNK_RECORDS, ++chunkIndex) {
-    const endRecord = Math.min(selected, startRecord + CHUNK_RECORDS);
+  const chunkWrites = chunkBuffers.map(function(buffer, chunkIndex) {
     const name = chunkName(chunkIndex);
     chunks.push(name);
-    chunkWrites.push(
-      writeFile(
-        path.join(OUT_BGS, name),
-        output.subarray(startRecord * RECORD_BYTES, endRecord * RECORD_BYTES)
-      )
-    );
-  }
+    return writeFile(path.join(OUT_BGS, name), buffer);
+  });
 
   const mobileMeta = {
     id: meta.id || 'bgs',
