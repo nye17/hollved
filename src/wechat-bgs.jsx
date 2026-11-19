@@ -2,7 +2,7 @@ import './styles/main.less';
 
 import { useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import webglEnabled from 'webgl-enabled';
+var webglEnabled = require('webgl-enabled')();
 
 import createNativeRenderer from './galaxy/render/renderer.js';
 import ControlModeButton from './galaxy/controlModeButton.jsx';
@@ -18,7 +18,7 @@ function WeChatBgsApp() {
   var containerRef = useRef(null);
 
   useEffect(function() {
-    if (!webglEnabled()) return;
+    if (!webglEnabled) return;
 
     var nativeRenderer = createNativeRenderer(containerRef.current);
 
@@ -32,7 +32,7 @@ function WeChatBgsApp() {
     };
   }, []);
 
-  if (!webglEnabled()) return <NoWebGL />;
+  if (!webglEnabled) return <NoWebGL />;
 
   return (
     <div>
