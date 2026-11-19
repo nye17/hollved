@@ -1,6 +1,6 @@
 import './styles/wechat-bgs.less';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 var webglEnabled = require('webgl-enabled')();
 
@@ -16,11 +16,17 @@ import './galaxy/store/scene.js';
 
 function WeChatBgsApp() {
   var containerRef = useRef(null);
+  var [progressive, setProgressive] = useState(null);
 
   useEffect(function() {
     if (!webglEnabled) return;
 
     var nativeRenderer = createNativeRenderer(containerRef.current);
+
+    function onProgressiveLoadUpdate(info) {
+      setProgressive(info);
+    }
+    appEvents.progressiveLoadUpdate.on(onProgressiveLoadUpdate);
 
     // appConfig has already parsed the authored hash by the time this component
     // mounts. Start only the DESI graph; graphLoader filters it to BGS.
@@ -28,6 +34,7 @@ function WeChatBgsApp() {
     appEvents.queryChanged.fire();
 
     return function() {
+      appEvents.progressiveLoadUpdate.off(onProgressiveLoadUpdate);
       nativeRenderer.destroy();
     };
   }, []);
@@ -50,6 +57,12 @@ function WeChatBgsApp() {
         </div>
       </div>
       <LoadingIndicator />
+      {progressive && (
+        <div className={'progressive-status' + (progressive.stalled ? ' stalled' : '')}>
+          {Math.round(progressive.loaded / 1000)}k / {Math.round(progressive.total / 1000)}k galaxies
+          <span>{progressive.chunk}/{progressive.chunks}</span>
+        </div>
+      )}
       <Help />
     </div>
   );
