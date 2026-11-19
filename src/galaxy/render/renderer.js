@@ -273,8 +273,10 @@ function sceneRenderer(container) {
 
   // One { id, color, positions } per tracer; see graphLoader.
   function setPositions(tracers) {
-    // Reset tracer state when new positions arrive
-    tracerRanges = null;
+    var isAppend = tracers && tracers.length && tracers[0].append;
+
+    // Only a fresh catalogue resets tracer state. Background chunks preserve it.
+    if (!isAppend) tracerRanges = null;
 
     focusScene();
 
@@ -364,7 +366,11 @@ function sceneRenderer(container) {
       appEvents.controlModeChanged.fire(currentMode); // sync UI button on load
     }
 
-    catalogue.setTracers(tracers);
+    if (isAppend) {
+      catalogue.appendTracers(tracers);
+    } else {
+      catalogue.setTracers(tracers);
+    }
 
     if (config.enableAuxLayers) {
       var _cv = appConfig.getVisibleTracers();
