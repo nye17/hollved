@@ -18,10 +18,9 @@ import appEvents from './appEvents.js';
 export default loadGraph;
 
 async function loadGraph(name, progress) {
-  var [manifest] = await Promise.all([
-    request(config.dataUrl + name + '/manifest.json', { responseType: 'json' }),
-    fetchRadar()
-  ]);
+  var manifestPromise = request(config.dataUrl + name + '/manifest.json', { responseType: 'json' });
+  var radarPromise = config.enableRadar ? fetchRadar() : Promise.resolve();
+  var [manifest] = await Promise.all([manifestPromise, radarPromise]);
 
   var tracerIds = manifest.tracers;
   if (config.tracerAllowlist && config.tracerAllowlist.length) {
@@ -44,7 +43,7 @@ async function loadGraph(name, progress) {
   appEvents.tracerRangesReady.fire(tracers.map(function(t) {
     return { id: t.id, name: t.name, color: t.color, count: t.count };
   }));
-  if (manifest.densities) {
+  if (config.enableDensities && manifest.densities) {
     appEvents.densitiesReady.fire(Object.assign({}, manifest.densities, { footprint: manifest.footprint || [] }));
   }
 }
