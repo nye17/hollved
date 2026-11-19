@@ -52,8 +52,10 @@ async function main() {
     );
   }
 
-  const maxSelected = Math.ceil(recordCount / 8) + 1024;
-  const sampled = Buffer.allocUnsafe(maxSelected * RECORD_BYTES);
+  // Allocate at the source upper bound, then trim to the actual deterministic
+  // sample. This avoids relying on the binomial sample count staying close to
+  // exactly 1/8.
+  const sampled = Buffer.allocUnsafe(source.length);
   let selected = 0;
 
   for (let i = 0; i < recordCount; ++i) {
