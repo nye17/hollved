@@ -19,11 +19,25 @@ export default loadGraph;
 
 async function loadGraph(name, progress) {
   var [manifest] = await Promise.all([
-    // request(config.dataUrl + name + '/manifest.json?nocache=' + (+new Date()), { responseType: 'json' }),
     request(config.dataUrl + name + '/manifest.json', { responseType: 'json' }),
     fetchRadar()
   ]);
-  var tracers = await Promise.all(manifest.tracers.map(function(tracerId) {
+
+  var tracerIds = manifest.tracers;
+  if (config.tracerAllowlist && config.tracerAllowlist.length) {
+    tracerIds = tracerIds.filter(function(tracerId) {
+      return config.tracerAllowlist.indexOf(tracerId) >= 0;
+    });
+  }
+
+  if (!tracerIds.length) {
+    throw new Error(
+      'No requested tracers found in ' + name + '/manifest.json. Requested: ' +
+      (config.tracerAllowlist || []).join(',')
+    );
+  }
+
+  var tracers = await Promise.all(tracerIds.map(function(tracerId) {
     return loadTracerData(config.dataUrl + name + '/' + tracerId, tracerId, name, progress);
   }));
   appEvents.positionsDownloaded.fire(tracers);
@@ -37,7 +51,6 @@ async function loadGraph(name, progress) {
 
 async function fetchRadar() {
   try {
-    // var data = await request(config.dataUrl + 'radar.json?nocache=' + (+new Date()), { responseType: 'json' });
     var data = await request(config.dataUrl + 'aux/radar.json', { responseType: 'json' });
     appEvents.radarReady.fire(data);
   } catch (_) {
