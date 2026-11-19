@@ -6,6 +6,7 @@ const OUT_ROOT = path.resolve('build-wechat-bgs/data/desi');
 const OUT_BGS = path.join(OUT_ROOT, 'bgs');
 const RECORD_BYTES = 6; // 3 little-endian float16 coordinates
 const SAMPLE_MASK = 0x7; // keep ~1/8 of records
+const CHUNK_RECORDS = 32768; // ~192 KiB per request
 
 function hash32(x) {
   x = (x ^ (x >>> 16)) >>> 0;
@@ -28,6 +29,10 @@ async function fetchRequired(url, type) {
   return type === 'json' ? response.json() : response.arrayBuffer();
 }
 
+function chunkName(index) {
+  return 'positions-' + String(index).padStart(3, '0') + '.bin';
+}
+
 async function main() {
   console.log('Fetching upstream DESI BGS metadata and positions...');
   const [meta, arrayBuffer] = await Promise.all([
@@ -47,10 +52,6 @@ async function main() {
     );
   }
 
-  // Deterministic index hashing avoids systematic striping if the source
-  // catalogue happens to be ordered by sky position, redshift, target ID, etc.
-  // The selection remains stable across deployments as long as source ordering
-  // remains unchanged.
   const maxSelected = Math.ceil(recordCount / 8) + 1024;
   const sampled = Buffer.allocUnsafe(maxSelected * RECORD_BYTES);
   let selected = 0;
@@ -70,13 +71,29 @@ async function main() {
   const output = sampled.subarray(0, selected * RECORD_BYTES);
   await mkdir(OUT_BGS, { recursive: true });
 
+  const chunks = [];
+  const chunkWrites = [];
+  for (let startRecord = 0, chunkIndex = 0; startRecord < selected; startRecord += CHUNK_RECORDS, ++chunkIndex) {
+    const endRecord = Math.min(selected, startRecord + CHUNK_RECORDS);
+    const name = chunkName(chunkIndex);
+    chunks.push(name);
+    chunkWrites.push(
+      writeFile(
+        path.join(OUT_BGS, name),
+        output.subarray(startRecord * RECORD_BYTES, endRecord * RECORD_BYTES)
+      )
+    );
+  }
+
   const mobileMeta = {
     id: meta.id || 'bgs',
     name: meta.name || 'BGS',
     count: selected,
     color: meta.color || '0x24bddcff',
     source_count: recordCount,
-    sample_fraction: selected / recordCount
+    sample_fraction: selected / recordCount,
+    chunks: chunks,
+    chunk_records: CHUNK_RECORDS
   };
 
   const mobileManifest = {
@@ -89,7 +106,7 @@ async function main() {
   await Promise.all([
     writeFile(path.join(OUT_ROOT, 'manifest.json'), JSON.stringify(mobileManifest)),
     writeFile(path.join(OUT_BGS, 'meta.json'), JSON.stringify(mobileMeta)),
-    writeFile(path.join(OUT_BGS, 'positions.bin'), output)
+    ...chunkWrites
   ]);
 
   console.log(
@@ -97,7 +114,8 @@ async function main() {
     recordCount.toLocaleString('en-US') + ' galaxies'
   );
   console.log(
-    'positions.bin: ' + (source.length / 1024 / 1024).toFixed(2) + ' MiB -> ' +
+    'Chunked positions: ' + chunks.length + ' files, ~' +
+    Math.round(CHUNK_RECORDS * RECORD_BYTES / 1024) + ' KiB each; total ' +
     (output.length / 1024 / 1024).toFixed(2) + ' MiB'
   );
 }
