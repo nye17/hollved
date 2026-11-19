@@ -40,7 +40,8 @@ jobs:
       - name: Show deployment sizes
         run: |
           du -h build-wechat-bgs/app.js
-          du -h build-wechat-bgs/data/desi/bgs/positions.bin
+          du -ch build-wechat-bgs/data/desi/bgs/positions-*.bin | tail -1
+          ls -lh build-wechat-bgs/data/desi/bgs/positions-*.bin | head
           cat build-wechat-bgs/data/desi/bgs/meta.json
 
       - name: Setup Pages
