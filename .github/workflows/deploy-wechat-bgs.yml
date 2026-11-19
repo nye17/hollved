@@ -34,6 +34,15 @@ jobs:
       - name: Build WeChat BGS
         run: npm run build:wechat-bgs
 
+      - name: Generate reduced mobile BGS catalogue
+        run: npm run generate:wechat-bgs-data
+
+      - name: Show deployment sizes
+        run: |
+          du -h build-wechat-bgs/app.js
+          du -h build-wechat-bgs/data/desi/bgs/positions.bin
+          cat build-wechat-bgs/data/desi/bgs/meta.json
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
