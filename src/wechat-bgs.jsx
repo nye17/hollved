@@ -1,4 +1,4 @@
-import './styles/main.less';
+import './styles/wechat-bgs.less';
 
 import { useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
