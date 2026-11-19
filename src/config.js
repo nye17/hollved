@@ -10,5 +10,7 @@ export default {
 
   // Special builds can restrict the survey data actually downloaded. The
   // normal HOLLVeD build leaves this null and therefore loads the full manifest.
-  tracerAllowlist: variant === 'wechat-bgs' ? ['bgs'] : null
+  tracerAllowlist: variant === 'wechat-bgs' ? ['bgs'] : null,
+  loadAuxiliary: variant !== 'wechat-bgs',
+  loadDensities: variant !== 'wechat-bgs'
 };
