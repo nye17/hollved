@@ -89,41 +89,65 @@ async function loadChunkedTracerData(endpoint, tracerId, graphName, meta, progre
 
   var first = makeTracer(meta, tracerId, firstBuffer, false);
   first.totalCount = meta.count || null;
-  first.loadRemaining = async function() {
-    var nextIndex = 1;
-    var workers = [];
-    var workerCount = Math.min(3, Math.max(0, meta.chunks.length - 1));
 
-    async function worker() {
-      while (true) {
-        var index = nextIndex++;
-        if (index >= meta.chunks.length) return;
-        var name = meta.chunks[index];
+  var loadedCount = first.count;
+  appEvents.progressiveLoadUpdate.fire({
+    loaded: loadedCount,
+    total: meta.count || loadedCount,
+    chunk: 1,
+    chunks: meta.chunks.length
+  });
+
+  // WeChat's embedded browser is much more reliable with one small binary
+  // transfer at a time than with several concurrent GitHub Pages requests.
+  // Keep refining even if one chunk exhausts its retries.
+  first.loadRemaining = async function() {
+    for (var index = 1; index < meta.chunks.length; ++index) {
+      var name = meta.chunks[index];
+      try {
         var buffer = await requestWithRetry(
           endpoint + '/' + name,
-          graphName + '/' + tracerId + ' detail ' + index + '/' + (meta.chunks.length - 1),
+          graphName + '/' + tracerId + ' detail ' + (index + 1) + '/' + meta.chunks.length,
           function() {},
-          3
+          5,
+          30000
         );
         var chunk = makeTracer(meta, tracerId, buffer, true);
         appEvents.positionsDownloaded.fire([chunk]);
+        loadedCount += chunk.count;
+        appEvents.progressiveLoadUpdate.fire({
+          loaded: loadedCount,
+          total: meta.count || loadedCount,
+          chunk: index + 1,
+          chunks: meta.chunks.length
+        });
+      } catch (err) {
+        console.warn('Skipping stalled BGS detail chunk ' + name + ':', err);
+        appEvents.progressiveLoadUpdate.fire({
+          loaded: loadedCount,
+          total: meta.count || loadedCount,
+          chunk: index + 1,
+          chunks: meta.chunks.length,
+          stalled: true
+        });
       }
-    }
 
-    for (var i = 0; i < workerCount; ++i) workers.push(worker());
-    await Promise.all(workers);
+      // Yield between chunks so the native WeChat browser can paint the newly
+      // added GPU buffer before the next network request starts.
+      await delay(80);
+    }
   };
 
   return first;
 }
 
-async function requestWithRetry(url, label, progress, attempts) {
+async function requestWithRetry(url, label, progress, attempts, timeoutMs) {
   var lastError;
   for (var attempt = 1; attempt <= attempts; ++attempt) {
     try {
       return await request(url, {
         responseType: 'arraybuffer',
-        timeout: 12000,
+        timeout: timeoutMs || 12000,
         progress: reportProgress(label, progress, null)
       });
     } catch (err) {
