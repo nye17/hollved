@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "mkdir -p ./build/assets && cp ./src/index.html ./build/ && cp ./assets/desi_low.png ./build/assets/ && webpack --config webpack.production.config.js",
-    "build:wechat-bgs": "rm -rf ./build-wechat-bgs && mkdir -p ./build-wechat-bgs/assets && cp ./src/wechat-bgs-index.html ./build-wechat-bgs/index.html && cp ./assets/desi_low.png ./build-wechat-bgs/assets/ && webpack --config webpack.wechat-bgs.config.js",
+    "build:wechat-bgs": "rm -rf ./build-wechat-bgs && mkdir -p ./build-wechat-bgs && cp ./src/wechat-bgs-index.html ./build-wechat-bgs/index.html && webpack --config webpack.wechat-bgs.config.js",
     "start": "PORT=8082 node dev-server.js"
   },
   "repository": {
